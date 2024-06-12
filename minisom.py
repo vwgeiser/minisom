@@ -74,11 +74,11 @@ def fast_norm(x):
 class MiniSom(object):
     Y_HEX_CONV_FACTOR = (3.0 / 2.0) / sqrt(3)
 
-    def __init__(self, x, y, input_len, sigma=1, learning_rate=0.5,
-                 decay_function='asymptotic_decay',
-                 neighborhood_function='gaussian', topology='rectangular',
-                 activation_distance='euclidean', random_seed=None,
-                 sigma_decay_function='asymptotic_decay'):
+    def __init__(self, x, y, input_shape, sigma=1, learning_rate=0.5,
+               decay_function='asymptotic_decay',
+               neighborhood_function='gaussian', topology='rectangular',
+               activation_distance='euclidean', random_seed=None,
+               sigma_decay_function='asymptotic_decay'):
         """Initializes a Self Organizing Maps.
 
         A rule of thumb to set the size of the grid for a dimensionality
@@ -96,8 +96,8 @@ class MiniSom(object):
         y : int
             y dimension of the SOM.
 
-        input_len : int
-            Number of the elements of the vectors in input.
+        input_shape : ndarray 
+            Shape of the input data: (number of samples, columns, data)
 
         sigma : float, optional (default=1)
             Spread of the neighborhood function.
@@ -170,8 +170,9 @@ class MiniSom(object):
         self._sigma = sigma
         self._input_len = input_len
         # random initialization
-        self._weights = self._random_generator.rand(x, y, input_len)*2-1
-        self._weights /= linalg.norm(self._weights, axis=-1, keepdims=True)
+        self._input_shape = input_shape
+        self._weights = self._random_generator.rand(x, y, *input_shape) * 2 - 1
+        self._weights /= linalg.norm(self._weights, axis=tuple(range(2, len(input_shape) + 2)), keepdims=True)
 
         self._activation_map = zeros((x, y))
         self._neigx = arange(x)
@@ -353,7 +354,7 @@ class MiniSom(object):
         return 1 - num / (denum+1e-8)
 
     def _euclidean_distance(self, x, w):
-        return linalg.norm(subtract(x, w), axis=-1)
+        return linalg.norm(subtract(x, w), axis=tuple(range(2, len(self._input_shape) + 2)))
 
     def _manhattan_distance(self, x, w):
         return linalg.norm(subtract(x, w), ord=1, axis=-1)
@@ -365,13 +366,11 @@ class MiniSom(object):
         if num_iteration < 1:
             raise ValueError('num_iteration must be > 1')
 
-    def _check_input_len(self, data):
-        """Checks that the data in input is of the correct shape."""
-        data_len = len(data[0])
-        if self._input_len != data_len:
-            msg = 'Received %d features, expected %d.' % (data_len,
-                                                          self._input_len)
-            raise ValueError(msg)
+    def _check_input_shape(self, data):
+      data_shape = data.shape[1:]
+      if self._input_shape != data_shape:
+          msg = 'Received input with shape %s, expected %s.' % (data_shape, self._input_shape)
+          raise ValueError(msg)
 
     def winner(self, x):
         """Computes the coordinates of the winning neuron for the sample x."""
